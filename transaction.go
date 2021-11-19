@@ -1,4 +1,4 @@
-package transaction
+package repository
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"go.uber.org/zap"
-	"repository/client"
-	"repository/logger"
 	"sync"
 )
 
@@ -68,7 +66,7 @@ func NewTransactionManager(serviceName, database string) TransactionManager {
 }
 
 func (tm *transactionManager) getDb() *gorm.DB {
-	return client.GetDB(tm.database, tm.serviceName)
+	return GetDB(tm.database, tm.serviceName)
 }
 
 // GetDb 应当仅在 model 层调用, 用于获取数据库连接
@@ -136,14 +134,14 @@ func (tm *transactionManager) Transaction(ctx context.Context, doTransaction fun
 				err0 = fmt.Errorf("recover:%v", r)
 			}
 			err = err0
-			logger.Error(ctx, "panic in Transaction", zap.Error(err))
+			Error(ctx, "panic in Transaction", zap.Error(err))
 			wrapper.err = err
 			if !txOpenByMe {
 				return
 			}
 			rberr := wrapper.db.Rollback().Error
 			if rberr != nil {
-				logger.Error(ctx, "rollback failed in recover", zap.Any("panic", r), zap.Error(rberr))
+				Error(ctx, "rollback failed in recover", zap.Any("panic", r), zap.Error(rberr))
 			}
 			wrapper.reset()
 		}
@@ -156,7 +154,7 @@ func (tm *transactionManager) Transaction(ctx context.Context, doTransaction fun
 	returnData, bizErr := doTransaction(ctx)
 	if bizErr != nil {
 		wrapper.err = bizErr
-		logger.Error(ctx, "doTransaction err", zap.Error(bizErr))
+		Error(ctx, "doTransaction err", zap.Error(bizErr))
 	}
 	if ctx.Err() != nil {
 		// 执行完以后, context 已经超时或取消了, 不再 commit/rollback (其实已经rollback 了)
@@ -168,25 +166,26 @@ func (tm *transactionManager) Transaction(ctx context.Context, doTransaction fun
 		if bizErr != nil {
 			rberr := wrapper.db.Rollback().Error
 			if rberr != nil {
-				logger.Error(ctx, "rollback failed", zap.NamedError("bizErr", bizErr), zap.Error(rberr))
+				Error(ctx, "rollback failed", zap.NamedError("bizErr", bizErr), zap.Error(rberr))
 			}
 			return returnData, bizErr
 		} else if wrapper.err != nil {
 			// 如果执行当前doTransaction方法没有error, 但其内部嵌套的事务发生了错误, 且当前doTransaction方法没有返回这个 error, 同样要回滚
-			logger.Error(ctx, "inner transaction has err, should rollback", zap.NamedError("bizErr", wrapper.err))
+			Error(ctx, "inner transaction has err, should rollback", zap.NamedError("bizErr", wrapper.err))
 			rberr := wrapper.db.Rollback().Error
 			if rberr != nil {
-				logger.Error(ctx, "rollback for inner transaction failed", zap.NamedError("bizErr", wrapper.err), zap.Error(rberr))
+				Error(ctx, "rollback for inner transaction failed", zap.NamedError("bizErr", wrapper.err), zap.Error(rberr))
 			}
 			return returnData, wrapper.err
 		}
 
 		commitError := wrapper.db.Commit().Error
 		if commitError != nil {
-			logger.Error(ctx, "commit failed", zap.Error(commitError))
+			Error(ctx, "commit failed", zap.Error(commitError))
 		}
 		return returnData, commitError
 	}
 
 	return returnData, bizErr
 }
+

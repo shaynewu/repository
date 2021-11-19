@@ -1,4 +1,4 @@
-package logger
+package repository
 
 import (
 	"os"
@@ -234,3 +234,4 @@ func New(app string, level zapcore.Level) *zap.SugaredLogger {
 	l := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(0)).With(zap.String("app", app))
 	return l.Sugar()
 }
+
