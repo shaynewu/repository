@@ -1,4 +1,4 @@
-package client
+package repository
 
 import (
 	"github.com/jinzhu/gorm"
@@ -73,3 +73,4 @@ func (s *DBInfo) InitDBConnect() {
 func SetServiceDBConfig(serviceName string, dbConf *DBConfig) {
 	ServiceConfigMap[serviceName] = dbConf
 }
+
