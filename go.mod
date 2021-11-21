@@ -1,4 +1,4 @@
-module repository
+module github.com/shaynewu/repository
 
 go 1.16
 
