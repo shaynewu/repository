@@ -6,8 +6,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"go.uber.org/zap"
 	"reflect"
-	"repository/logger"
-	"repository/transaction"
 	"time"
 )
 
@@ -18,7 +16,7 @@ type Model interface {
 }
 
 type Repository struct {
-	Tm         transaction.TransactionManager
+	Tm         TransactionManager
 	Value      Model
 	CreateFunc func(ctx context.Context, model Model) (err error)
 	SaveFunc   func(ctx context.Context, model Model) (err error)
@@ -75,7 +73,7 @@ func (e *Repository) InitRepoFields(fieldsStructPtr interface{}) {
 
 type RepositoryInterface interface {
 	// Get inner transaction manager
-	GetTM() transaction.TransactionManager
+	GetTM() TransactionManager
 
 	FindOne(context.Context, Condition) (Model, error)
 	FindById(ctx context.Context, id interface{}) (Model, error)
@@ -105,7 +103,7 @@ func NewRepository(model Model) *Repository {
 	repo0 := &Repository{
 		Value: model,
 	}
-	repo0.Tm = transaction.NewTransactionManager("", "")
+	repo0.Tm = NewTransactionManager("", "")
 	repo0.SetCreateFunc(func(ctx context.Context, data Model) error {
 		db := repo0.Tm.GetDb(ctx)
 		if db == nil {
@@ -222,7 +220,7 @@ func (e *Repository) parseOptions(ctx context.Context, db *gorm.DB, options ...O
 	return db
 }
 
-func (e *Repository) GetTM() transaction.TransactionManager {
+func (e *Repository) GetTM() TransactionManager {
 	return e.Tm
 }
 
@@ -231,7 +229,7 @@ func (e *Repository) FindOne(ctx context.Context, condition Condition) (data Mod
 	startTime := time.Now()
 	defer func() {
 		s, _ := condition.flatten()
-		logger.Info("[loadlog][sql] FindOne", zap.Any("key", ctx.Value("key")), zap.String("table", e.Value.TableName()), zap.String("condition", s), zap.Int64("request_time", time.Since(startTime).Milliseconds()))
+		Info("[loadlog][sql] FindOne", zap.Any("key", ctx.Value("key")), zap.String("table", e.Value.TableName()), zap.String("condition", s), zap.Int64("request_time", time.Since(startTime).Milliseconds()))
 	}()
 
 	data = e.NewStruct().(Model)
@@ -274,7 +272,7 @@ func (e *Repository) Find(ctx context.Context, condition Condition, options ...O
 	startTime := time.Now()
 	defer func() {
 		s, _ := condition.flatten()
-		logger.Info("[loadlog][sql] Find", zap.Any("key", ctx.Value("key")), zap.String("table", e.Value.TableName()), zap.String("condition", s), zap.Int64("request_time", time.Since(startTime).Milliseconds()))
+		Info("[loadlog][sql] Find", zap.Any("key", ctx.Value("key")), zap.String("table", e.Value.TableName()), zap.String("condition", s), zap.Int64("request_time", time.Since(startTime).Milliseconds()))
 	}()
 
 	slice = e.NewSlice()
@@ -299,7 +297,7 @@ func (e *Repository) Save(ctx context.Context, model Model) error {
 func (e Repository) Create(ctx context.Context, model Model) error {
 	startTime := time.Now()
 	defer func() {
-		logger.Info("[loadlog][sql] Create", zap.Any("key", ctx.Value("key")), zap.String("table", e.Value.TableName()), zap.Any("model", model), zap.Int64("request_time", time.Since(startTime).Milliseconds()))
+		Info("[loadlog][sql] Create", zap.Any("key", ctx.Value("key")), zap.String("table", e.Value.TableName()), zap.Any("model", model), zap.Int64("request_time", time.Since(startTime).Milliseconds()))
 	}()
 	return e.CreateFunc(ctx, model)
 }
